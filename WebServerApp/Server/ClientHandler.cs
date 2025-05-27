@@ -1,52 +1,49 @@
 using System.Net.Sockets;
 using System.Text;
+using WebServerApp.Abstract;
+using WebServerApp.Handler;
+using WebServerApp.Http;
 
 namespace WebServerApp.Server;
 
-public class ClientHandler
+public class ClientHandler : IClientHandler
 {
     private readonly TcpClient _client;
+    private readonly IHandler _handler;
 
-    public ClientHandler(TcpClient client)
+    public ClientHandler(TcpClient client, IHandler handler)
     {
         _client = client;
+        _handler = handler;
     }
 
-    public void HandleClient()
+    public void Handle()
     {
-        using NetworkStream stream = _client.GetStream();
-        byte[] buffer = new byte[1024];
+        using var stream = _client.GetStream();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var writer = new BinaryWriter(stream, Encoding.UTF8);
 
-        try
+        var requestBuilder = new StringBuilder();
+        string? line;
+        while (!string.IsNullOrWhiteSpace(line = reader.ReadLine()))
         {
-            int bytesRead = stream.Read(buffer, 0, buffer.Length);
-            if (bytesRead > 0)
-            {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Console.WriteLine($"Received: {message}");
+            requestBuilder.AppendLine(line);
+        }
 
-                if (int.TryParse(message.Trim(), out int number))
-                {
-                    int result = number * number;
-                    byte[] response = Encoding.UTF8.GetBytes(result.ToString());
-                    stream.Write(response, 0, response.Length);
-                }
-                else
-                {
-                    byte[] error = Encoding.UTF8.GetBytes("Invalid input");
-                    stream.Write(error, 0, error.Length);
-                }
-            }
-        }
-        catch (Exception e)
+        var request = HttpRequest.Parse(requestBuilder.ToString());
+        var context = new HttpContext(request);
+
+        if (!HttpValidator.IsValid(request, out var error))
         {
-            Console.WriteLine($"Client error: {e.Message}");
+            context.Response.StatusCode = error;
+            context.Response.Content = Encoding.UTF8.GetBytes($"<h1>{error}</h1>");
         }
-        finally
+        else
         {
-            _client.Close();
-            Console.WriteLine("Client disconnected.");
+            _handler.Handle(context);
         }
+
+        writer.Write(context.Response.ToBytes());
+        _client.Close();
     }
-
 }
