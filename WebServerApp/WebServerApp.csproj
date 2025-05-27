@@ -8,8 +8,4 @@
         <RootNamespace>WebServerApp</RootNamespace>
     </PropertyGroup>
 
-    <ItemGroup>
-      <Folder Include="webroot\" />
-    </ItemGroup>
-
 </Project>
