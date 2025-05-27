@@ -1,9 +1,7 @@
-namespace WebServerKIU.Server;
-
-using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
+
+namespace WebServerApp.Server;
 
 public class WebServer
 {
@@ -25,18 +23,15 @@ public class WebServer
 
         while (true)
         {
-            Console.WriteLine("Waiting for a connection...");
             TcpClient client = _listener.AcceptTcpClient();
             Console.WriteLine("Client connected.");
 
-            // Handle client in a new thread
-            Thread thread = new Thread(() =>
+            // Use a task instead of a raw thread
+            Task.Run(() =>
             {
                 ClientHandler handler = new ClientHandler(client);
                 handler.HandleClient();
             });
-
-            thread.Start();
         }
     }
 
