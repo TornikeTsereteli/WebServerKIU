@@ -4,5 +4,5 @@ namespace WebServerApp.Handler;
 
 public interface IHandler
 {
-    void Handle(HttpContext context);
+    Task Handle(HttpContext context);
 }

@@ -17,7 +17,7 @@ public class ClientHandler : IClientHandler
         _handler = handler;
     }
 
-    public void Handle()
+    public async Task HandleAsync()
     {
         using var stream = _client.GetStream();
         using var reader = new StreamReader(stream, Encoding.UTF8);
@@ -40,10 +40,11 @@ public class ClientHandler : IClientHandler
         }
         else
         {
-            _handler.Handle(context);
+            await _handler.Handle(context);
         }
 
-        writer.Write(context.Response.ToBytes());
+        // writer.Write(context.Response.ToBytes());
+        context.Response.WriteTo(stream);
         _client.Close();
     }
 }

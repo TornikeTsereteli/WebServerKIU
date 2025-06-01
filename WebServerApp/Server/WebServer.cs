@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 using WebServerApp.Abstract;
 using WebServerApp.Handler;
-using WebServerApp.Server;
 
 namespace WebServerApp.Server;
 
@@ -10,14 +10,16 @@ public class WebServer
 {
     private readonly TcpListener _listener;
     private readonly IHandler _handler;
+    private readonly ILogger _logger;
 
-    public WebServer(string ip, int port, IHandler handler)
+    public WebServer(string ip, int port, IHandler handler, ILogger logger)
     {
         _listener = new TcpListener(IPAddress.Parse(ip), port);
         _handler = handler;
+        _logger = logger;
     }
 
-    public void Start()
+    public async Task Start()
     {
         _listener.Start();
         Console.WriteLine($"[Server] Started on {_listener.LocalEndpoint}");
@@ -27,31 +29,33 @@ public class WebServer
             try
             {
                 TcpClient client = _listener.AcceptTcpClient();
-                Console.WriteLine("[Server] Client connected.");
+               _logger.LogInformation( "[Server] Client connected.");
 
-                Thread thread = new Thread(() =>
-                {
-                    try
-                    {
-                        IClientHandler clientHandler = new ClientHandler(client, _handler);
-                        clientHandler.Handle();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Client Error] {ex}");
-                    }
-                    finally
-                    {
-                        client.Close();
-                        Console.WriteLine("[Server] Client connection closed.");
-                    }
-                });
+               async void ThreadStart()
+               {
+                   try
+                   {
+                       IClientHandler clientHandler = new ClientHandler(client, _handler);
+                       await clientHandler.HandleAsync();
+                   }
+                   catch (Exception ex)
+                   {
+                       _logger.LogError($"[Client Error] {ex}");
+                   }
+                   finally
+                   {
+                       client.Close();
+                       _logger.LogInformation("[Server] Client connection closed.");
+                   }
+               }
+
+               Thread thread = new Thread(ThreadStart);
 
                 thread.Start();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Server Error] {ex}");
+                _logger.LogError($"[Server Error] {ex}");
                 // Optionally add some delay or shutdown logic if needed
             }
         }
@@ -60,7 +64,7 @@ public class WebServer
     public void Stop()
     {
         _listener.Stop();
-        Console.WriteLine("[Server] Stopped.");
+        _logger.LogInformation("[Server] Stopped.");
     }
 }
 
