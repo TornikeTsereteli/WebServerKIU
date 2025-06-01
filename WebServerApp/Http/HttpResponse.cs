@@ -18,4 +18,17 @@ public class HttpResponse
         var headerBytes = Encoding.UTF8.GetBytes(header);
         return headerBytes.Concat(Content).ToArray();
     }
+    
+    public void WriteTo(Stream stream)
+    {
+        using var writer = new StreamWriter(stream, leaveOpen: true);
+        writer.WriteLine($"HTTP/1.1 {StatusCode}");
+        writer.WriteLine($"Content-Type: {ContentType}");
+        writer.WriteLine($"Content-Length: {Content?.Length ?? 0}");
+        writer.WriteLine(); // End of headers
+        writer.Flush();
+
+        if (Content != null && Content.Length > 0)
+            stream.Write(Content, 0, Content.Length);
+    }
 }
